@@ -111,3 +111,17 @@ You can then run the image using the instructions above, replacing `<version>` w
 - The published Docker image tag will match the tag name, but without the leading `v`.
 - The major and minor part of the version number match the PostgreSQL version number, while the patch represents an iteration of the image.
 - Note: This versioning scheme is not strictly SemVer, but it should be safe to treat it as SemVer for most use cases.
+
+## Updating the image
+
+1. Update the version numbers in `.env`.
+   - `BASE_IMAGE`: The base PostgreSQL version. Use the latest stable Alpine-based version found in [Docker Hub](https://hub.docker.com/_/postgres).
+   - `POSTGIS_VERSION` and `POSTGIS_SHA256`: The PostGIS extension version and its SHA256 checksum. Use the same values that the latest official PostGIS Alpine-based image uses. The values can be found in the `docker-postgis` repository on GitHub (e.g., [psql 18.0 & postgis 3.6](https://github.com/postgis/docker-postgis/blob/master/18-3.6/alpine/Dockerfile).)
+   - TIMESCALEDB_VERSION: The TimescaleDB extension version. Use the latest stable version found in the [TimescaleDB GitHub repository releases](https://github.com/timescale/timescaledb).
+2. Commit the changes and tag a new release with the appropriate version number (e.g., `v18.0.0`). Push to origin.
+   ```console
+   git commit -am "Update versions"
+   git tag vX.Y.Z
+   git push origin main --tags
+   ```
+3. GitHub Actions will automatically build a Docker image from the tagged revision and push it to Docker Hub as `creowave/postgres:X.Y.Z`.
