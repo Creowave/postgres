@@ -29,8 +29,8 @@ RUN apk add --no-cache --virtual .postgis-fetch-deps \
   proj-dev \
   proj-util \
   sfcgal-dev \
-  llvm-dev \
   clang \
+  llvm \
   autoconf \
   automake \
   cunit-dev \
@@ -57,9 +57,13 @@ RUN apk add --no-cache --virtual .postgis-fetch-deps \
   protobuf-c \
   ca-certificates
 
-# Symlink clang and llvm-lto to ensure compatibility with PostGIS build scripts
-RUN ln -s /usr/bin/clang /usr/bin/clang-19 \
-  && mkdir -p /usr/lib/llvm19/bin && ln -s /usr/bin/llvm-lto /usr/lib/llvm19/bin/llvm-lto
+# Create symlinks matching the LLVM paths hardcoded in PostgreSQL's PGXS build system
+RUN PGXS_CLANG=$(grep '^CLANG' /usr/local/lib/postgresql/pgxs/src/Makefile.global | sed 's/.*= *//') \
+  && PGXS_LLVM_BINPATH=$(grep '^LLVM_BINPATH' /usr/local/lib/postgresql/pgxs/src/Makefile.global | sed 's/.*= *//') \
+  && echo "PGXS expects CLANG=${PGXS_CLANG}, LLVM_BINPATH=${PGXS_LLVM_BINPATH}" \
+  && ln -sf /usr/bin/clang "/usr/bin/${PGXS_CLANG}" \
+  && mkdir -p "${PGXS_LLVM_BINPATH}" \
+  && ln -sf /usr/bin/llvm-lto "${PGXS_LLVM_BINPATH}/llvm-lto"
 
 # Download, verify and extract PostGIS source code
 RUN wget -O postgis.tar.gz "https://github.com/postgis/postgis/archive/${POSTGIS_VERSION}.tar.gz" \
@@ -72,14 +76,13 @@ RUN wget -O postgis.tar.gz "https://github.com/postgis/postgis/archive/${POSTGIS
   --strip-components 1 \
   && rm postgis.tar.gz
 
-# Build PostGIS - with Link Time Optimization (LTO) enabled
+# Build PostGIS
 RUN cd /usr/src/postgis \
   && gettextize \
   && ./autogen.sh \
   && ./configure \
-  --enable-lto \
   && make -j$(nproc) \
-  && make install 
+  && make install
 
 # Cleanup
 RUN rm -rf /usr/src/postgis \
@@ -94,6 +97,7 @@ RUN apk add --no-cache --virtual .timescaledb-fetch-deps \
   git \
   && apk add --no-cache --virtual .timescaledb-build-deps \
   openssl-dev \
+  icu-dev \
   clang \
   gcc \
   cmake \
